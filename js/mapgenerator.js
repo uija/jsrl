@@ -4,6 +4,10 @@ function MapGenerator( roomCount) {
   this.idx = 0;
   this.roomCount = roomCount;
   this.roomSize = 8;
+
+  this.roomGridSize = {x:0, y:0};
+  this.world = [];
+  this.paths = [];
 };
 MapGenerator.prototype.GenerateRooms = function() {
   var lastRoom = this.AddRoom( {x:0, y:0, next: -1, prev: -1, t: 's'});
@@ -28,9 +32,51 @@ MapGenerator.prototype.GenerateRooms = function() {
   this.rooms[lastRoom.idx].t = 'e';
   console.log( "It took " + count + " tries to generate " + this.rooms.length);
 };
+MapGenerator.prototype.GeneratePaths = function() {
+  var tilesSize = this.roomSize + 2;
+  this.paths = [];
+  // find all paths
+  for( var i = 0; i < this.rooms.length; ++i) {
+
+    if( this.rooms[i].prev > -1) {
+      var from = this.rooms[i];
+      var to = this.rooms[from.prev];
+      var ofx = from.x * tilesSize;
+      var ofy = from.y * tilesSize;
+      var otx = to.x * tilesSize;
+      var oty = to.y * tilesSize;
+
+      // find doors
+      var f, t;
+      if( from.x == to.x && from.x > to.y) { // north
+        f = from.doors.north;
+        t = to.doors.south;
+      } else if( from.x < to.x && from.y == to.y) { // east
+        f = from.doors.east;
+        t = to.doors.west;
+      } else if( from.x == to.x && from.y < to.Y) { // south
+        f = from.doors.south;
+        t = to.doors.north;
+      } else {
+        f = from.doors.west;
+        t = to.doors.east;
+      }
+      var fx = ofx + f.x;
+      var fy = ofy + f.y;
+      var tx = otx + t.x;
+      var ty = oty + t.y;
+
+      this.paths.push({from:{x:fx, y:fy}, to:{x:tx, y:ty}});
+    }
+
+  }
+  return this.paths;
+}
 MapGenerator.prototype.GenerateRoomLayouts = function() {
   for( var i = 0; i < this.rooms.length; ++i) {
-    this.rooms[i].tiles = this.RandomizeRoomLayout();
+    var t = this.RandomizeRoomLayout();
+    this.rooms[i].tiles = t.tiles;
+    this.rooms[i].doors = t.doors;
   }
 }
 MapGenerator.prototype.RandomizeRoomLayout = function() {
@@ -43,17 +89,75 @@ MapGenerator.prototype.RandomizeRoomLayout = function() {
     }
   }
   // randomize size
-  var sizeX = randomInt( 3, this.roomSize-1);
-  var sizeY = randomInt( 3, this.roomSize-1);
-  var offsetX = Math.floor( (tileSize - sizeX) / 2);
-  var offsetY = Math.floor( (tileSize - sizeY) / 2);
+  var sizeX = randomInt( 4, this.roomSize);
+  var sizeY = randomInt( 4, this.roomSize);
+  var offsetX = Math.floor( (tilesSize - sizeX) / 2);
+  var offsetY = Math.floor( (tilesSize - sizeY) / 2);
 
   for( var y = 0; y < sizeY; ++y) {
     for( var x = 0; x < sizeX; ++x) {
       tiles[y+offsetY][x+offsetX] = 'r';
     }
   }
-  return tiles;
+  // place doors
+  var ret = { doors: {}, tiles: []};
+  var r = randomInt( 1, sizeX-1);
+  tiles[offsetY][offsetX+r] = 'd';
+  ret.doors.north = {x:offsetX+r, y:offsetY};
+  r = randomInt( 1, sizeX-1);
+  tiles[offsetY+sizeY-1][offsetX+r] = 'd';
+  ret.doors.south = {x:offsetX+r, y:offsetY+sizeY-1};
+
+  r = randomInt( 1, sizeY-1);
+  tiles[offsetY+r][offsetX] = 'd';
+  ret.doors.west = {x:offsetX, y:offsetY+r};
+  r = randomInt( 1, sizeY-1);
+  tiles[offsetY+r][offsetX+sizeX-1] = 'd';
+  ret.doors.east = {x:offsetX+sizeX-1, y:offsetY+r};
+
+  // break away tiles at the edge
+  for( var y = 0; y < sizeY; ++y) {
+    for( var x = 0; x < sizeX; ++x) {
+      if( x == 0 || y == 0 || x == sizeX - 1 || y == sizeY - 1) {
+        var px = x + offsetX;
+        var py = y + offsetY;
+        if( tiles[py][px] != 'd') {
+          if( randomInt( 0, 100) < 50) {
+            tiles[py][px] = '';
+          }
+        }
+      }
+    }
+  }
+  ret.tiles = tiles;
+  return ret;
+}
+MapGenerator.prototype.GenerateWorld = function() {
+  this.world = [];
+  var tilesSize = (this.roomSize+2);
+
+  var sizeX = this.roomGridSize.x * tilesSize;
+  var sizeY = this.roomGridSize.y * tilesSize;
+
+  for( var y = 0; y < sizeY; ++y) {
+    this.world[y] = [];
+    for( var x = 0; x < sizeX; ++x) {
+      this.world[y][x] = '';
+    }
+  }
+  var c = 0;
+  for( var i = 0; i < this.rooms.length; ++i) {
+    var ox = this.rooms[i].x * tilesSize;
+    var oy = this.rooms[i].y * tilesSize;
+    for( var y = 0; y < tilesSize; ++y) {
+      for( var x = 0; x < tilesSize; ++x) {
+        if( this.rooms[i].tiles[y][x] != '') {
+          this.world[oy+y][ox+x] = this.rooms[i].tiles[y][x];
+          c++;
+        }
+      }
+    }
+  }
 }
 MapGenerator.prototype.OptimizeRoomCoordinates = function() {
   var minX = 0;
@@ -74,7 +178,8 @@ MapGenerator.prototype.OptimizeRoomCoordinates = function() {
     this.rooms[i].x -= minX;
     this.rooms[i].y -= minY;
   }
-
+  this.roomGridSize = {x: sizeX+1, y: sizeY+1};
+  return this.roomGridSize;
 };
 MapGenerator.prototype.AddRoom = function( room) {
   room.idx = this.idx;

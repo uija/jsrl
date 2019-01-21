@@ -1,0 +1,51 @@
+<html>
+<head>
+  <script src="js/mapgenerator.js"></script>
+</head>
+<body>
+<script type="text/javascript">
+var canvas = document.createElement( 'canvas');
+canvas.setAttribute( 'width', 800);
+canvas.setAttribute( 'height', 800);
+document.getElementsByTagName( 'body')[0].append( canvas);
+var ctx = canvas.getContext( '2d');
+ctx.fillStyle = '#FFFFFF';
+ctx.fillRect( 0, 0, 800, 800);
+
+var map = new MapGenerator( 10);
+map.GenerateRooms();
+var size = map.OptimizeRoomCoordinates();
+map.GenerateRoomLayouts();
+
+var quadSize = 8;
+// we have 4 px per tile with 1 space = 5
+// we have 10 tiles per room
+for( var i = 0; i < map.rooms.length; ++i) {
+  var tpr = map.roomSize + 2; // tiles per room
+  var ox = map.rooms[i].x * tpr * quadSize;
+  var oy = map.rooms[i].y * tpr * quadSize;
+  for( var y = 0; y < tpr; ++y) {
+    for( var x = 0; x < tpr; ++x) {
+      var px = x * quadSize + ox;
+      var py = y * quadSize + oy;
+      var t = map.rooms[i].tiles[y][x];
+      if( t == 'r') {
+        ctx.fillStyle = '#000000';
+      } else if( t == 'd') {
+        ctx.fillStyle = '#FF8888';
+      } else {
+        ctx.fillStyle = '#FFFFFF';
+      }
+      ctx.fillRect( px, py, quadSize-1, quadSize-1);
+    }
+  }
+}
+
+function randomInt( min, max) {
+  var diff = max - min;
+  var r = Math.random() * diff + min;
+  return Math.floor( r);
+}
+</script>
+</body>
+</html>
