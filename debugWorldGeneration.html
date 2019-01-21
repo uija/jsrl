@@ -27,6 +27,10 @@ for( var y = 0; y < map.world.length; ++y) {
     var t = map.world[y][x];
     if( t == 'r') {
       ctx.fillStyle = '#000000';
+    } else if( t == 's') {
+      ctx.fillStyle = '#004400';
+    } else if( t == 'e') {
+      ctx.fillStyle = '#440000';
     } else if( t == 'd') {
       ctx.fillStyle = '#FF8888';
     } else {
@@ -37,10 +41,17 @@ for( var y = 0; y < map.world.length; ++y) {
     ctx.fillRect( px, py, quadSize-1, quadSize-1);
   }
 }
-ctx.strokeStyle = '#88FF88';
 ctx.lineWidth = 3;
 for( var i = 0; i < map.paths.length; ++i) {
-  console.log( "Draw Path", map.paths[i]);
+  if( map.paths[i].d == 'n') {
+    ctx.strokeStyle = '#FFAAAA';
+  } else if( map.paths[i].d == 'e') {
+    ctx.strokeStyle = '#AAFFAA';
+  } else if( map.paths[i].d == 's') {
+    ctx.strokeStyle = '#AAAAFF';
+  } else if( map.paths[i].d == 'w') {
+    ctx.strokeStyle = '#AAFFFF';
+  }
   ctx.beginPath();
   ctx.moveTo( map.paths[i].from.x * quadSize + quadSize/2, map.paths[i].from.y * quadSize + quadSize/2);
   ctx.lineTo( map.paths[i].to.x * quadSize + quadSize/2, map.paths[i].to.y * quadSize + quadSize/2)

@@ -48,25 +48,30 @@ MapGenerator.prototype.GeneratePaths = function() {
 
       // find doors
       var f, t;
-      if( from.x == to.x && from.x > to.y) { // north
+      var d;
+      if( from.x == to.x && from.y > to.y) { // north
         f = from.doors.north;
         t = to.doors.south;
+        d = 'n';
       } else if( from.x < to.x && from.y == to.y) { // east
         f = from.doors.east;
         t = to.doors.west;
-      } else if( from.x == to.x && from.y < to.Y) { // south
+        d = 'e';
+      } else if( from.x == to.x && from.y < to.y) { // south
         f = from.doors.south;
         t = to.doors.north;
+        d = 's';
       } else {
         f = from.doors.west;
         t = to.doors.east;
+        d = 'w';
       }
       var fx = ofx + f.x;
       var fy = ofy + f.y;
       var tx = otx + t.x;
       var ty = oty + t.y;
-
-      this.paths.push({from:{x:fx, y:fy}, to:{x:tx, y:ty}});
+      var path = {from:{x:fx, y:fy}, to:{x:tx, y:ty}, d: d};
+      this.paths.push(path);
     }
 
   }
@@ -74,12 +79,18 @@ MapGenerator.prototype.GeneratePaths = function() {
 }
 MapGenerator.prototype.GenerateRoomLayouts = function() {
   for( var i = 0; i < this.rooms.length; ++i) {
-    var t = this.RandomizeRoomLayout();
+    var type = 'r';
+    if( this.rooms[i].t == 's') {
+      type = 's';
+    } else if( this.rooms[i].t == 'e') {
+      type = 'e';
+    }
+    var t = this.RandomizeRoomLayout( type);
     this.rooms[i].tiles = t.tiles;
     this.rooms[i].doors = t.doors;
   }
 }
-MapGenerator.prototype.RandomizeRoomLayout = function() {
+MapGenerator.prototype.RandomizeRoomLayout = function( t) {
   var tilesSize = this.roomSize + 2;
   var tiles = [];
   for( var y = 0; y < tilesSize; ++y) {
@@ -96,7 +107,7 @@ MapGenerator.prototype.RandomizeRoomLayout = function() {
 
   for( var y = 0; y < sizeY; ++y) {
     for( var x = 0; x < sizeX; ++x) {
-      tiles[y+offsetY][x+offsetX] = 'r';
+      tiles[y+offsetY][x+offsetX] = t;
     }
   }
   // place doors
