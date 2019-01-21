@@ -1,3 +1,20 @@
+/**
+ * Map generation consists of several steps.
+ * First: Global Room generation
+ *    We have a meta-grid where each cell contains a room
+ *    We create a random path in this meta-grid until we have
+ *    enough rooms.
+ * Second: For each meta-grid cell we create a random sized room
+ *    We randomize its doors and with that have a grid with tiles that are
+ *      a. a void-tile containing nothing
+ *      b. a room tile
+ *      c. a door tile
+ *      d. this will be enhanced to contain items and spawn locations
+ *  Third: we generate the paths between the rooms from one door to the other
+ *  Forth: When we are done with everything, we copy all that into a
+ *    World grid, that contains one cell per tile, that stores all valid information
+ *    For the game to know.
+ */
 function MapGenerator( roomCount) {
   this.lookup = {};
   this.rooms = [];
@@ -9,6 +26,7 @@ function MapGenerator( roomCount) {
   this.world = [];
   this.paths = [];
 };
+// First: Global room generation
 MapGenerator.prototype.GenerateRooms = function() {
   var lastRoom = this.AddRoom( {x:0, y:0, next: -1, prev: -1, t: 's'});
 
@@ -32,51 +50,31 @@ MapGenerator.prototype.GenerateRooms = function() {
   this.rooms[lastRoom.idx].t = 'e';
   console.log( "It took " + count + " tries to generate " + this.rooms.length);
 };
-MapGenerator.prototype.GeneratePaths = function() {
-  var tilesSize = this.roomSize + 2;
-  this.paths = [];
-  // find all paths
+// First: optimize the rooms
+// it moves everything so x and y are never lower 0
+MapGenerator.prototype.OptimizeRoomCoordinates = function() {
+  var minX = 0;
+  var maxX = 0;
+  var minY = 0;
+  var maxY = 0;
   for( var i = 0; i < this.rooms.length; ++i) {
-
-    if( this.rooms[i].prev > -1) {
-      var from = this.rooms[i];
-      var to = this.rooms[from.prev];
-      var ofx = from.x * tilesSize;
-      var ofy = from.y * tilesSize;
-      var otx = to.x * tilesSize;
-      var oty = to.y * tilesSize;
-
-      // find doors
-      var f, t;
-      var d;
-      if( from.x == to.x && from.y > to.y) { // north
-        f = from.doors.north;
-        t = to.doors.south;
-        d = 'n';
-      } else if( from.x < to.x && from.y == to.y) { // east
-        f = from.doors.east;
-        t = to.doors.west;
-        d = 'e';
-      } else if( from.x == to.x && from.y < to.y) { // south
-        f = from.doors.south;
-        t = to.doors.north;
-        d = 's';
-      } else {
-        f = from.doors.west;
-        t = to.doors.east;
-        d = 'w';
-      }
-      var fx = ofx + f.x;
-      var fy = ofy + f.y;
-      var tx = otx + t.x;
-      var ty = oty + t.y;
-      var path = {from:{x:fx, y:fy}, to:{x:tx, y:ty}, d: d};
-      this.paths.push(path);
-    }
-
+    var room = this.rooms[i];
+    if( room.x < minX) minX = room.x;
+    if( room.y < minY) minY = room.y;
+    if( room.x > maxX) maxX = room.x;
+    if( room.y > maxY) maxY = room.y;
   }
-  return this.paths;
-}
+
+  var sizeX = maxX - minX;
+  var sizeY = maxY - minY;
+  for( var i = 0; i < this.rooms.length; ++i) {
+    this.rooms[i].x -= minX;
+    this.rooms[i].y -= minY;
+  }
+  this.roomGridSize = {x: sizeX+1, y: sizeY+1};
+  return this.roomGridSize;
+};
+// Second: Generate the layout for each room
 MapGenerator.prototype.GenerateRoomLayouts = function() {
   for( var i = 0; i < this.rooms.length; ++i) {
     var type = 'r';
@@ -90,6 +88,10 @@ MapGenerator.prototype.GenerateRoomLayouts = function() {
     this.rooms[i].doors = t.doors;
   }
 }
+// Second: Randomize a room
+// Defining its size
+// rolling the 4 doorlocations
+// removing some edge-tiles to let rooms look less blocky
 MapGenerator.prototype.RandomizeRoomLayout = function( t) {
   var tilesSize = this.roomSize + 2;
   var tiles = [];
@@ -143,6 +145,53 @@ MapGenerator.prototype.RandomizeRoomLayout = function( t) {
   ret.tiles = tiles;
   return ret;
 }
+// Third: Generate paths between rooms
+MapGenerator.prototype.GeneratePaths = function() {
+  var tilesSize = this.roomSize + 2;
+  this.paths = [];
+  // find all paths
+  for( var i = 0; i < this.rooms.length; ++i) {
+
+    if( this.rooms[i].prev > -1) {
+      var from = this.rooms[i];
+      var to = this.rooms[from.prev];
+      var ofx = from.x * tilesSize;
+      var ofy = from.y * tilesSize;
+      var otx = to.x * tilesSize;
+      var oty = to.y * tilesSize;
+
+      // find doors
+      var f, t;
+      var d;
+      if( from.x == to.x && from.y > to.y) { // north
+        f = from.doors.north;
+        t = to.doors.south;
+        d = 'n';
+      } else if( from.x < to.x && from.y == to.y) { // east
+        f = from.doors.east;
+        t = to.doors.west;
+        d = 'e';
+      } else if( from.x == to.x && from.y < to.y) { // south
+        f = from.doors.south;
+        t = to.doors.north;
+        d = 's';
+      } else {
+        f = from.doors.west;
+        t = to.doors.east;
+        d = 'w';
+      }
+      var fx = ofx + f.x;
+      var fy = ofy + f.y;
+      var tx = otx + t.x;
+      var ty = oty + t.y;
+      var path = {from:{x:fx, y:fy}, to:{x:tx, y:ty}, d: d};
+      this.paths.push(path);
+    }
+
+  }
+  return this.paths;
+}
+// Fourth: Move everything into a single word array
 MapGenerator.prototype.GenerateWorld = function() {
   this.world = [];
   var tilesSize = (this.roomSize+2);
@@ -170,28 +219,9 @@ MapGenerator.prototype.GenerateWorld = function() {
     }
   }
 }
-MapGenerator.prototype.OptimizeRoomCoordinates = function() {
-  var minX = 0;
-  var maxX = 0;
-  var minY = 0;
-  var maxY = 0;
-  for( var i = 0; i < this.rooms.length; ++i) {
-    var room = this.rooms[i];
-    if( room.x < minX) minX = room.x;
-    if( room.y < minY) minY = room.y;
-    if( room.x > maxX) maxX = room.x;
-    if( room.y > maxY) maxY = room.y;
-  }
 
-  var sizeX = maxX - minX;
-  var sizeY = maxY - minY;
-  for( var i = 0; i < this.rooms.length; ++i) {
-    this.rooms[i].x -= minX;
-    this.rooms[i].y -= minY;
-  }
-  this.roomGridSize = {x: sizeX+1, y: sizeY+1};
-  return this.roomGridSize;
-};
+
+// Helper Methods..
 MapGenerator.prototype.AddRoom = function( room) {
   room.idx = this.idx;
   this.lookup[room.x + "_" + room.y] = this.idx;
