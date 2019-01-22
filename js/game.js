@@ -26,22 +26,32 @@ Game.prototype.BuildItemsList = function(config) {
     }
   }
   return ret;
-}
+};
 Game.prototype.Start = function() {
   this.Render();
 };
 Game.prototype.Render = function() {
-  this.renderer.Render( this.viewport, this.map.world);
+  this.renderer.Render( this.viewport, this.map.world, this.viewport);
+};
+Game.prototype.Move = function( x, y) {
+  var px = this.viewport.x + x;
+  var py = this.viewport.y + y;
+
+  if( this.map.world[py][px] != null) {
+    if( this.map.world[py][px].CanWalk()) {
+      this.viewport = {x:px, y:py};
+    }
+  }
 };
 Game.prototype.HandleInput = function( e) {
   if( e == 37) { // west
-    this.viewport.x -= 1;
+    this.Move( -1, 0);
   } else if( e == 38) { // north
-    this.viewport.y -= 1;
+    this.Move( 0, -1);
   } else if( e == 39) { // east
-    this.viewport.x += 1;
+    this.Move( 1, 0);
   } else if( e == 40) { // south
-    this.viewport.y += 1;
+    this.Move( 0, 1);
   }
   this.Render();
 };

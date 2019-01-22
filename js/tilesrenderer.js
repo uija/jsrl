@@ -13,7 +13,7 @@ Renderer.prototype.Clear = function( color) {
   this.ctx.fillStyle = color;
   this.ctx.fillRect( 0, 0, this.width, this.height);
 };
-Renderer.prototype.Render = function( viewport, world) {
+Renderer.prototype.Render = function( viewport, world, player) {
   this.Clear( '#000000');
   var offsetx = Math.ceil( (this.width / this.gridsize + 4) / 2);
   var offsety = Math.ceil( (this.height / this.gridsize + 4) / 2);
@@ -35,9 +35,16 @@ Renderer.prototype.Render = function( viewport, world) {
       if( !done) {
         this.DrawBackgroundTile( screenX, screenY);
       }
+
+      if( ox == 0 && oy == 0) {
+        this.DrawPlayer( screenX, screenY);
+      }
     }
   }
-}
+};
+Renderer.prototype.DrawPlayer = function( sx, sy) {
+  this.DrawImageTile( sx, sy, 18, 9);
+};
 Renderer.prototype.DrawTile = function( sx, sy, tile) {
   var tex = tile.Texture();
   this.DrawImageTile( sx, sy, tex.x, tex.y);

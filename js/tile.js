@@ -37,3 +37,18 @@ Tile.prototype.Texture = function() {
   }
   return {x:0, y:46};
 };
+Tile.prototype.CanWalk = function() {
+  if( this.spawn != null) {
+    return false;
+  }
+  if( this.item != null) {
+    if( this.item.type == 'portal') {
+      return true;
+    }
+    return false;
+  }
+  if( this.type == '.') {
+    return false;
+  }
+  return true;
+};
