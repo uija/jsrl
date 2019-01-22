@@ -1,5 +1,6 @@
 <html>
 <head>
+  <script src="js/room.js"></script>
   <script src="js/mapgenerator.js"></script>
 </head>
 <body>
@@ -25,11 +26,11 @@ function randomInt( min, max) {
 
 
 for( var i = 0; i < map.rooms.length; ++i) {
-    if( map.rooms[i].t == 's') {
+    if( map.rooms[i].type == 's') {
       ctx.fillStyle = '#88FF88';
-    } else if( map.rooms[i].t == 'e') {
+    } else if( map.rooms[i].type == 'e') {
       ctx.fillStyle = '#FF8888';
-    } else if( map.rooms[i].t == 'l') {
+    } else if( map.rooms[i].type == 'l') {
       ctx.fillStyle = '#CCDDEE';
     } else {
       ctx.fillStyle = '#666666';
@@ -41,6 +42,7 @@ for( var i = 0; i < map.rooms.length; ++i) {
 
 }
 for( var i = 0; i < map.rooms.length; ++i) {
+  console.log( "handling", map.rooms[i]);
   if( map.rooms[i].prev > -1) {
     var fx = map.rooms[i].x * 20 + 10;
     var fy = map.rooms[i].y * 20 + 10;

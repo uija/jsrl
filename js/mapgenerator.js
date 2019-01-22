@@ -20,15 +20,14 @@ function MapGenerator( roomCount) {
   this.rooms = [];
   this.idx = 0;
   this.roomCount = roomCount;
-  this.roomSize = 8;
-
   this.roomGridSize = {x:0, y:0};
   this.world = [];
   this.paths = [];
+  this.roomSize = 0;
 };
 // First: Global room generation
 MapGenerator.prototype.GenerateRooms = function() {
-  var lastRoom = this.AddRoom( {x:0, y:0, next: -1, prev: -1, t: 's'});
+  var lastRoom = this.AddRoom( new Room( 0, 0, -1, 's'));
 
   var count = 0;
   while( this.rooms.length < this.roomCount && count < 1000) {
@@ -36,18 +35,18 @@ MapGenerator.prototype.GenerateRooms = function() {
     if( free.length > 0) {
       var i = randomInt( 0, free.length);
       var pos = free[i];
-      var newRoom = this.AddRoom({x:pos.x, y:pos.y, next: -1, prev: lastRoom.idx, t: 'm'});
+      var newRoom = this.AddRoom( new Room( pos.x, pos.y, lastRoom.idx, 'r'));
       this.rooms[lastRoom.idx].next = newRoom.idx;
       lastRoom = newRoom;
     } else if( lastRoom.prev == -1) {
       break;
     } else {
-      this.rooms[lastRoom.idx].t = 'l'
+      this.rooms[lastRoom.idx].type = 'l'
       lastRoom = this.rooms[lastRoom.prev];
     }
     count++;
   }
-  this.rooms[lastRoom.idx].t = 'e';
+  this.rooms[lastRoom.idx].type = 'e';
   console.log( "It took " + count + " tries to generate " + this.rooms.length);
 };
 // First: optimize the rooms
@@ -75,78 +74,40 @@ MapGenerator.prototype.OptimizeRoomCoordinates = function() {
   return this.roomGridSize;
 };
 // Second: Generate the layout for each room
-MapGenerator.prototype.GenerateRoomLayouts = function() {
+MapGenerator.prototype.GenerateRoomLayouts = function( roomSize) {
+  this.roomSize = roomSize;
   for( var i = 0; i < this.rooms.length; ++i) {
-    var type = 'r';
-    if( this.rooms[i].t == 's') {
-      type = 's';
-    } else if( this.rooms[i].t == 'e') {
-      type = 'e';
-    }
-    var t = this.RandomizeRoomLayout( type);
-    this.rooms[i].tiles = t.tiles;
-    this.rooms[i].doors = t.doors;
+    this.rooms[i].Generate( roomSize);
   }
-}
-// Second: Randomize a room
-// Defining its size
-// rolling the 4 doorlocations
-// removing some edge-tiles to let rooms look less blocky
-MapGenerator.prototype.RandomizeRoomLayout = function( t) {
-  var tilesSize = this.roomSize + 2;
-  var tiles = [];
-  for( var y = 0; y < tilesSize; ++y) {
-    tiles[y] = [];
-    for( var x = 0; x < tilesSize; ++x) {
-      tiles[y][x] = '';
+};
+MapGenerator.prototype.FillRooms = function(roomMobs, roomItems) {
+  for( var i = 0; i < this.rooms.length; ++i) {
+    if( this.rooms[i].type == 'r') {
+        this.rooms[i].PlaceMobs( 1, 3, roomMobs);
     }
   }
-  // randomize size
-  var sizeX = randomInt( 4, this.roomSize);
-  var sizeY = randomInt( 4, this.roomSize);
-  var offsetX = Math.floor( (tilesSize - sizeX) / 2);
-  var offsetY = Math.floor( (tilesSize - sizeY) / 2);
-
-  for( var y = 0; y < sizeY; ++y) {
-    for( var x = 0; x < sizeX; ++x) {
-      tiles[y+offsetY][x+offsetX] = t;
+  while( roomItems.length > 0) {
+    var item = roomItems.pop();
+    var i = randomInt( 0, this.rooms.length);
+    this.rooms[i].PlaceItems( [item]);
+  }
+};
+MapGenerator.prototype.GetSpawnLocation = function() {
+  for( var i = 0; i < this.rooms.length; ++i) {
+    if( this.rooms[i].playerSpawnLocation != null) {
+      var localPos = this.rooms[i].playerSpawnLocation;
+      var x = this.rooms[i].x * this.rooms[i].size.tilesSize + localPos.x;
+      var y = this.rooms[i].y * this.rooms[i].size.tilesSize + localPos.y;
+      return {x:x,y:y};
     }
   }
-  // place doors
-  var ret = { doors: {}, tiles: []};
-  var r = randomInt( 1, sizeX-1);
-  tiles[offsetY][offsetX+r] = 'd';
-  ret.doors.north = {x:offsetX+r, y:offsetY};
-  r = randomInt( 1, sizeX-1);
-  tiles[offsetY+sizeY-1][offsetX+r] = 'd';
-  ret.doors.south = {x:offsetX+r, y:offsetY+sizeY-1};
-
-  r = randomInt( 1, sizeY-1);
-  tiles[offsetY+r][offsetX] = 'd';
-  ret.doors.west = {x:offsetX, y:offsetY+r};
-  r = randomInt( 1, sizeY-1);
-  tiles[offsetY+r][offsetX+sizeX-1] = 'd';
-  ret.doors.east = {x:offsetX+sizeX-1, y:offsetY+r};
-
-  // break away tiles at the edge
-  for( var y = 0; y < sizeY; ++y) {
-    for( var x = 0; x < sizeX; ++x) {
-      if( x == 0 || y == 0 || x == sizeX - 1 || y == sizeY - 1) {
-        var px = x + offsetX;
-        var py = y + offsetY;
-        if( tiles[py][px] != 'd') {
-          if( randomInt( 0, 100) < 50) {
-            tiles[py][px] = '';
-          }
-        }
-      }
-    }
-  }
-  ret.tiles = tiles;
-  return ret;
-}
+  return {x:0,y:0};
+};
 // Third: Generate paths between rooms
 MapGenerator.prototype.GeneratePaths = function() {
+  if( this.rooms.length == 0) {
+    return;
+  }
   var tilesSize = this.roomSize + 2;
   this.paths = [];
   // find all paths
@@ -190,11 +151,56 @@ MapGenerator.prototype.GeneratePaths = function() {
 
   }
   return this.paths;
-}
+};
+MapGenerator.prototype.GeneratePathTiles = function() {
+  for( var i = 0; i < this.paths.length; ++i) {
+    var tiles = this.GenerateTilesForPath( this.paths[i]);
+    this.paths[i].tiles = tiles;
+  }
+};
+MapGenerator.prototype.GenerateTilesForPath = function( path) {
+  var found = false;
+  var pos = path.from;
+  var target = path.to;
+  var tiles = [];
+
+  var count = 0;
+  while( (pos.x != target.x || pos.y != target.y) && count < 10) {
+    var n = this.FindFastestNeighbour( pos, target);
+    if( n.x != target.x || n.y != target.y) {
+      tiles.push( n);
+    }
+    pos = n;
+    count++;
+  }
+  return tiles;
+};
+MapGenerator.prototype.FindFastestNeighbour = function( pos, target) {
+  var tiles = [];
+  var shortestLen = -1;
+  var shortestTile = null;
+  tiles.push( {x:pos.x+1, y:pos.y});
+  tiles.push( {x:pos.x-1, y:pos.y});
+  tiles.push( {x:pos.x, y:pos.y+1});
+  tiles.push( {x:pos.x, y:pos.y-1});
+  for( var i = 0; i < tiles.length; ++i) {
+    var x = (target.x > tiles[i].x ? target.x - tiles[i].x : tiles[i].x - target.x);
+    var y = (target.y > tiles[i].y ? target.y - tiles[i].y : tiles[i].y - target.y);
+    var len = x + y;
+    if( shortestLen == -1 || len < shortestLen) {
+      shortestTile = tiles[i];
+      shortestLen = len;
+    }
+  }
+  return shortestTile;
+};
 // Fourth: Move everything into a single word array
 MapGenerator.prototype.GenerateWorld = function() {
   this.world = [];
-  var tilesSize = (this.roomSize+2);
+  if( this.rooms.length == 0) {
+    return;
+  }
+  var tilesSize = (this.rooms[0].size.roomSize+2);
 
   var sizeX = this.roomGridSize.x * tilesSize;
   var sizeY = this.roomGridSize.y * tilesSize;
@@ -202,7 +208,7 @@ MapGenerator.prototype.GenerateWorld = function() {
   for( var y = 0; y < sizeY; ++y) {
     this.world[y] = [];
     for( var x = 0; x < sizeX; ++x) {
-      this.world[y][x] = '';
+      this.world[y][x] = null;
     }
   }
   var c = 0;
@@ -211,11 +217,23 @@ MapGenerator.prototype.GenerateWorld = function() {
     var oy = this.rooms[i].y * tilesSize;
     for( var y = 0; y < tilesSize; ++y) {
       for( var x = 0; x < tilesSize; ++x) {
-        if( this.rooms[i].tiles[y][x] != '') {
-          this.world[oy+y][ox+x] = this.rooms[i].tiles[y][x];
+        if( this.rooms[i].tiles[y][x] != null) {
+          this.world[oy+y][ox+x] = new Tile( oy+y, ox+x, this.rooms[i].tiles[y][x].type);
+          if( this.rooms[i].tiles[y][x].item != null) {
+            this.world[oy+y][ox+x].item = this.rooms[i].tiles[y][x].item;
+          }
+          if( this.rooms[i].tiles[y][x].spawn != null) {
+            this.world[oy+y][ox+x].spawn = this.rooms[i].tiles[y][x].spawn;
+          }
           c++;
         }
       }
+    }
+  }
+  // add paths to the world
+  for( var i = 0; i < this.paths.length; ++i) {
+    for( var j = 0; j < this.paths[i].tiles.length; ++j) {
+      this.world[this.paths[i].tiles[j].y][this.paths[i].tiles[j].x] = new Tile( oy+y, ox+x, 'p');
     }
   }
 }

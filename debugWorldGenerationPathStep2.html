@@ -1,61 +1,64 @@
 <html>
 <head>
+  <script src="js/tile.js"></script>
+  <script src="js/room.js"></script>
   <script src="js/mapgenerator.js"></script>
 </head>
 <body>
 <script type="text/javascript">
 var canvas = document.createElement( 'canvas');
-canvas.setAttribute( 'width', 800);
-canvas.setAttribute( 'height', 800);
+canvas.setAttribute( 'width', 2000);
+canvas.setAttribute( 'height', 2000);
 document.getElementsByTagName( 'body')[0].append( canvas);
 var ctx = canvas.getContext( '2d');
 ctx.fillStyle = '#FFFFFF';
-ctx.fillRect( 0, 0, 800, 800);
+ctx.fillRect( 0, 0, 2000, 2000);
 
 var map = new MapGenerator( 10);
 map.GenerateRooms();
 var size = map.OptimizeRoomCoordinates();
-map.GenerateRoomLayouts();
+map.GenerateRoomLayouts(8);
 map.GenerateWorld();
 map.GeneratePaths();
+map.GeneratePathTiles();
 
-var quadSize = 8;
+var quadSize = 20;
 // we have 4 px per tile with 1 space = 5
 // we have 10 tiles per room
 for( var y = 0; y < map.world.length; ++y) {
   for( var x = 0; x < map.world[y].length; ++x) {
-    var t = map.world[y][x];
-    if( t == 'r') {
-      ctx.fillStyle = '#000000';
-    } else if( t == 's') {
-      ctx.fillStyle = '#004400';
-    } else if( t == 'e') {
-      ctx.fillStyle = '#440000';
-    } else if( t == 'd') {
-      ctx.fillStyle = '#FF8888';
-    } else {
-      ctx.fillStyle = '#CCCCCC';
+    if( map.world[y][x] != null) {
+      var t = map.world[y][x].type;
+      if( t == 'r') {
+        ctx.fillStyle = '#000000';
+      } else if( t == 's') {
+        ctx.fillStyle = '#004400';
+      } else if( t == 'e') {
+        ctx.fillStyle = '#440000';
+      } else if( t == 'd') {
+        ctx.fillStyle = '#FF8888';
+      } else {
+        ctx.fillStyle = '#CCCCCC';
+      }
+      var px = x * quadSize;
+      var py = y * quadSize;
+      ctx.fillRect( px, py, quadSize-1, quadSize-1);
+
+      if( t == '.') {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect( px+5, py+5, quadSize-11, quadSize-11);
+      }
     }
-    var px = x * quadSize;
-    var py = y * quadSize;
-    ctx.fillRect( px, py, quadSize-1, quadSize-1);
   }
 }
 ctx.lineWidth = 3;
 for( var i = 0; i < map.paths.length; ++i) {
-  if( map.paths[i].d == 'n') {
-    ctx.strokeStyle = '#FFAAAA';
-  } else if( map.paths[i].d == 'e') {
-    ctx.strokeStyle = '#AAFFAA';
-  } else if( map.paths[i].d == 's') {
-    ctx.strokeStyle = '#AAAAFF';
-  } else if( map.paths[i].d == 'w') {
-    ctx.strokeStyle = '#AAFFFF';
+  for( var j = 0; j < map.paths[i].tiles.length; ++j) {
+    var x = map.paths[i].tiles[j].x * quadSize;
+    var y = map.paths[i].tiles[j].y * quadSize;
+    ctx.fillStyle = '#888888';
+    ctx.fillRect( x, y, quadSize-1, quadSize-1);
   }
-  ctx.beginPath();
-  ctx.moveTo( map.paths[i].from.x * quadSize + quadSize/2, map.paths[i].from.y * quadSize + quadSize/2);
-  ctx.lineTo( map.paths[i].to.x * quadSize + quadSize/2, map.paths[i].to.y * quadSize + quadSize/2)
-  ctx.stroke();
 }
 
 function randomInt( min, max) {
